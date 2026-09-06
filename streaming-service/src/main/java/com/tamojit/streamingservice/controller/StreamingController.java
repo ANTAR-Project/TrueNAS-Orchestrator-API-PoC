@@ -1,6 +1,8 @@
 package com.tamojit.streamingservice.controller;
 
+import com.tamojit.streamingservice.security.TokenValidationFilter;
 import com.tamojit.streamingservice.service.StreamingService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -27,7 +29,7 @@ public class StreamingController {
      * fetches segments without touching this service again.
      */
     @GetMapping("/{movieId}")
-    public ResponseEntity<String> getPlaylist(@PathVariable String movieId) {
+    public ResponseEntity<String> getPlaylist(@PathVariable String movieId, HttpServletRequest request) {
         log.info("Playlist request for movieId: {}", movieId);
 
         String playlistPath = redisTemplate.opsForValue().get(MASTER_PLAYLIST_KEY_PREFIX + movieId);
@@ -36,9 +38,11 @@ public class StreamingController {
             return ResponseEntity.notFound().build();
         }
 
+        String token = (String) request.getAttribute(TokenValidationFilter.TOKEN_ATTRIBUTE);
+
         log.info("Proxying playlist for movieId: {} at path: {}", movieId, playlistPath);
         return ResponseEntity.ok()
             .header("Content-Type", "application/x-mpegURL")
-            .body(streamingService.getPlaylist(playlistPath));
+            .body(streamingService.getPlaylist(playlistPath, token));
     }
 }

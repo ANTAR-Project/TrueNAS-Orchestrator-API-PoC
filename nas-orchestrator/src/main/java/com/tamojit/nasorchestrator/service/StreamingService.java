@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -77,8 +78,11 @@ public class StreamingService {
     }
 
     // relativePath - "encoded/{movieId}/master.m3u8" or ".../720p/playlist.m3u8"
-    public String getRewrittenPlaylist(String relativePath) throws IOException {
+    public String getRewrittenPlaylist(String relativePath, String token) throws IOException {
         String basePath = relativePath.substring(0, relativePath.lastIndexOf("/") + 1);
+        String tokenSuffix = (token != null && !token.isBlank())
+            ? "&token=" + URLEncoder.encode(token, StandardCharsets.UTF_8)
+            : "";
 
         String raw;
         try (InputStream inputStream = smbFileClient.preview(relativePath)) {
@@ -99,9 +103,9 @@ public class StreamingService {
             // Segment files (.ts) go to /stream/segment for the cache+SMB read path.
             String fullPath = basePath + trimmed;
             if (trimmed.endsWith(".m3u8")) {
-                rewritten.append("/api/v1/nas-orchestrator/stream/playlist?path=").append(fullPath).append("\n");
+                rewritten.append("/api/v1/nas-orchestrator/stream/playlist?path=").append(fullPath).append(tokenSuffix).append("\n");
             } else {
-                rewritten.append("/api/v1/nas-orchestrator/stream/segment?path=").append(fullPath).append("\n");
+                rewritten.append("/api/v1/nas-orchestrator/stream/segment?path=").append(fullPath).append(tokenSuffix).append("\n");
             }
         }
 

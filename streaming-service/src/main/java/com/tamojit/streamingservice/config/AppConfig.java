@@ -14,6 +14,9 @@ public class AppConfig {
     @Value("${nas.orchestrator.base-url}")
     private String nasOrchestratorBaseUrl;
 
+    @Value("${auth.service.base-url}")
+    private String authServiceBaseUrl;
+
     /**
      * RestClient wired to nas-orchestrator — used by StreamingService to proxy
      * playlist requests.
@@ -34,5 +37,12 @@ public class AppConfig {
         redisTemplate.setValueSerializer(new StringRedisSerializer());
 
         return redisTemplate;
+    }
+
+    @Bean
+    public RestClient authServiceRestClient() {
+        return RestClient.builder()
+            .baseUrl(authServiceBaseUrl)
+            .build();
     }
 }

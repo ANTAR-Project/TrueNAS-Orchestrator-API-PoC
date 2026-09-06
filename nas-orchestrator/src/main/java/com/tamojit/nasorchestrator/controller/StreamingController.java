@@ -32,11 +32,12 @@ public class StreamingController {
         @NotBlank(message = "Path is required")
         @Pattern(regexp = NO_TRAVERSAL_REGEX, message = NO_TRAVERSAL_MSG)
         @Pattern(regexp = NO_BACKSLASH_REGEX, message = NO_BACKSLASH_MSG)
-        String path
+        String path,
+        @RequestParam(value = "token", required = false) String token
     ) throws IOException {
         return ResponseEntity.ok()
             .header(HttpHeaders.CONTENT_TYPE, "application/x-mpegURL")
-            .body(streamingService.getRewrittenPlaylist(path));
+            .body(streamingService.getRewrittenPlaylist(path, token));
     }
 
     @GetMapping("/segment")
