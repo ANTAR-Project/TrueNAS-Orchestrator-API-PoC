@@ -64,6 +64,7 @@ services:
       - "8081:8081"
     depends_on:
       - redis
+      - auth-service
     networks:
       - antar-network
 
@@ -78,6 +79,7 @@ services:
       - "8082:8082"
     depends_on:
       - kafka
+      - auth-service
     networks:
       - antar-network
 
@@ -92,6 +94,7 @@ services:
       - "8083:8083"
     depends_on:
       - kafka
+      - auth-service
     networks:
       - antar-network
 
@@ -108,6 +111,21 @@ services:
       - redis
       - kafka
       - nas-orchestrator
+      - auth-service
+    networks:
+      - antar-network
+
+  # auth-service
+  auth-service:
+    build:
+      context: ./auth-service
+    container_name: auth-service
+    env_file:
+      - ./auth-service/.env
+    ports:
+      - "8085:8085"
+    depends_on:
+      - redis
     networks:
       - antar-network
 
