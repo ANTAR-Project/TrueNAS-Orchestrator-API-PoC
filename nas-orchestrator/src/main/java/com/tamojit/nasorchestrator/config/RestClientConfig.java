@@ -17,4 +17,13 @@ public class RestClientConfig {
             .defaultHeader("Authorization", "Bearer " + apiKey)
             .build();
     }
+
+    @Bean
+    public RestClient authServiceRestClient(
+        @Value("${auth.service.base-url}") String baseUrl
+    ) {
+        return RestClient.builder()
+            .baseUrl(baseUrl)
+            .build();
+    }
 }
