@@ -1,5 +1,6 @@
 package com.tamojit.videoservice.client;
 
+import com.tamojit.videoservice.security.ServiceAuthTokenProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.http.HttpHeaders;
@@ -15,9 +16,14 @@ import java.io.IOException;
 @Component
 public class NasOrchestratorClient {
     private final RestClient restClient;
+    private final ServiceAuthTokenProvider tokenProvider;
 
-    public NasOrchestratorClient(@Value("${nas.orchestrator.base-url}") String baseUrl) {
+    public NasOrchestratorClient(
+        @Value("${nas.orchestrator.base-url}") String baseUrl,
+        ServiceAuthTokenProvider tokenProvider
+    ) {
         this.restClient = RestClient.builder().baseUrl(baseUrl).build();
+        this.tokenProvider = tokenProvider;
     }
 
     // returns the relative NAS path the file was stored under: {dirPath}/{originalFilename}
@@ -34,8 +40,9 @@ public class NasOrchestratorClient {
         restClient.post()
             .uri("/api/v1/nas-orchestrator/files/upload/file")
             .contentType(MediaType.MULTIPART_FORM_DATA)
-            .body(body)
+            .header("X-Auth-Token", tokenProvider.getToken())
             .header(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
+            .body(body)
             .retrieve()
             .toBodilessEntity();
 

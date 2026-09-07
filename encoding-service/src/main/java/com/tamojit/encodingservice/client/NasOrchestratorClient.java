@@ -1,5 +1,6 @@
 package com.tamojit.encodingservice.client;
 
+import com.tamojit.encodingservice.security.ServiceAuthTokenProvider;
 import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
@@ -18,14 +19,19 @@ import java.nio.file.Path;
 @Component
 public class NasOrchestratorClient {
     private final RestClient restClient;
+    private final ServiceAuthTokenProvider tokenProvider;
 
-    public NasOrchestratorClient(@Value("${nas.orchestrator.base-url}") String baseUrl) {
+    public NasOrchestratorClient(
+        @Value("${nas.orchestrator.base-url}") String baseUrl,
+        ServiceAuthTokenProvider tokenProvider
+    ) {
         // Apache HC5: FileSystemResource exposes contentLength() so HC5 sends a
         // proper Content-Length header per file — no heap buffering, no chunked framing.
         this.restClient = RestClient.builder()
             .baseUrl(baseUrl)
             .requestFactory(new HttpComponentsClientHttpRequestFactory(HttpClients.createDefault()))
             .build();
+        this.tokenProvider = tokenProvider;
     }
 
     public void downloadToFile(String relativePath, Path destination) throws IOException {
@@ -34,6 +40,7 @@ public class NasOrchestratorClient {
                 .path("/api/v1/nas-orchestrator/files/download")
                 .queryParam("path", relativePath)
                 .build())
+            .header("X-Auth-Token", tokenProvider.getToken())
             .retrieve()
             .body(byte[].class);
 
@@ -73,6 +80,7 @@ public class NasOrchestratorClient {
             restClient.post()
                 .uri("/api/v1/nas-orchestrator/files/upload/file")
                 .contentType(MediaType.MULTIPART_FORM_DATA)
+                .header("X-Auth-Token", tokenProvider.getToken())
                 .body(body)
                 .retrieve()
                 .toBodilessEntity();
