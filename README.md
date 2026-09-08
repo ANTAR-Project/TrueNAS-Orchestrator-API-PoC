@@ -199,7 +199,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:5501
 docker compose up --build -d
 ```
 
-This builds all 5 service images and starts Zookeeper → Kafka → Redis → `auth-service` → `nas-orchestrator` → `video-service`/`encoding-service` → `streaming-service` (per `depends_on`, though these are startup-order hints only, not readiness gates — see [Known limitations](#known-limitations-poc-state)).
+This builds all 5 service images and starts Zookeeper → Kafka → Redis → `auth-service` → `nas-orchestrator` → `video-service`/`encoding-service` → `streaming-service` (per `depends_on`, though these are startup-order hints only, not readiness gates — see [Points to Consider](#points-to-consider)).
 
 Watch nas-orchestrator's logs for the bootstrap sequence:
 ```bash
