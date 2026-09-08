@@ -18,6 +18,6 @@ WORKDIR /app
 
 COPY --from=builder ./app/target/auth-service-0.0.1-SNAPSHOT.jar ./app.jar
 
-EXPOSE 8081
+EXPOSE 8085
 
 ENTRYPOINT ["java", "-Xms256m", "-Xmx512m", "-jar", "app.jar"]
