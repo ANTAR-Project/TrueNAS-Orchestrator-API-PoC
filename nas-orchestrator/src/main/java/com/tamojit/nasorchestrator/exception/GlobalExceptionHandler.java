@@ -5,6 +5,7 @@ import jakarta.validation.ConstraintViolationException;
 import jcifs.smb.SmbAuthException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -18,6 +19,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleValidation(ConstraintViolationException e) {
         String message = e.getConstraintViolations().stream()
             .map(ConstraintViolation::getMessage)
+            .collect(Collectors.joining("; "));
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", message));
+    }
+
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, String>> handleBodyValidation(MethodArgumentNotValidException e) {
+        String message = e.getBindingResult().getFieldErrors().stream()
+            .map(fe -> fe.getField() + ": " + fe.getDefaultMessage())
             .collect(Collectors.joining("; "));
 
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("error", message));
@@ -46,5 +56,10 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<Map<String, String>> handleTrueNasJobFailure(IllegalStateException e) {
         return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(Map.of("error", e.getMessage()));
+    }
+
+    @ExceptionHandler(WorkspaceAlreadyExistsException.class)
+    public ResponseEntity<Map<String, String>> handleWorkspaceAlreadyExists(WorkspaceAlreadyExistsException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
     }
 }

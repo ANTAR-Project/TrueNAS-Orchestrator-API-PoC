@@ -1,6 +1,7 @@
 package com.tamojit.nasorchestrator.client;
 
 import com.tamojit.nasorchestrator.dto.FileEntry;
+import com.tamojit.nasorchestrator.exception.WorkspaceAlreadyExistsException;
 import jakarta.servlet.http.HttpServletResponse;
 import jcifs.CIFSContext;
 import jcifs.smb.SmbFile;
@@ -210,6 +211,25 @@ public class SmbFileClient {
         try (InputStream inputStream = file.getInputStream();
              OutputStream outputStream = new SmbFileOutputStream(target)) {
             inputStream.transferTo(outputStream);
+        }
+    }
+
+    public void createWorkspaceDirectory(String name) throws IOException {
+        SmbFile target = resolve(name.endsWith("/") ? name : name + "/");
+
+        if (target.exists()) {
+            target.close();
+            throw new WorkspaceAlreadyExistsException("Workspace already exists at root: " + name);
+        }
+
+        try (target) {
+            target.mkdir();
+        }
+    }
+
+    public boolean workspaceExists(String name) throws IOException {
+        try (SmbFile target = resolve(name.endsWith("/") ? name : name + "/")) {
+            return target.exists();
         }
     }
 }
