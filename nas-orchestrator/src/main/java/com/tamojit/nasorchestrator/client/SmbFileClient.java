@@ -7,6 +7,8 @@ import jcifs.CIFSContext;
 import jcifs.smb.SmbFile;
 import jcifs.smb.SmbFileInputStream;
 import jcifs.smb.SmbFileOutputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
@@ -25,6 +27,8 @@ import java.util.zip.ZipOutputStream;
 
 @Component
 public class SmbFileClient {
+    private static final Logger logger = LoggerFactory.getLogger(SmbFileClient.class);
+
     private final CIFSContext cifsContext;
     private final String shareBaseUrl;
 
@@ -155,23 +159,32 @@ public class SmbFileClient {
 
     private void zipRecursively(SmbFile dir, String basePath, ZipOutputStream zos) throws IOException {
         String path = dir.getPath();
+        boolean createdNewDir = !path.endsWith("/");
+        SmbFile listableDir = createdNewDir ? new SmbFile(path + "/", cifsContext) : dir;
 
-        try (SmbFile listableDir = path.endsWith("/") ? dir : new SmbFile(path + "/", cifsContext)) {
-            for (SmbFile child : listableDir.listFiles()) {
-                try (child) {
-                    String entryPath = basePath + child.getName();
+        try {
+            SmbFile[] children = listableDir.listFiles();
+            if (children != null) {
+                for (SmbFile child : children) {
+                    try (child) {
+                        String entryPath = basePath + child.getName();
 
-                    if (child.isDirectory()) {
-                        zipRecursively(child, entryPath, zos);
-                    } else {
-                        zos.putNextEntry(new ZipEntry(entryPath));
-                        try (InputStream in = new SmbFileInputStream(child)) {
-                            in.transferTo(zos);
+                        if (child.isDirectory()) {
+                            zipRecursively(child, entryPath, zos);
+                        } else {
+                            zos.putNextEntry(new ZipEntry(entryPath));
+                            try (InputStream in = new SmbFileInputStream(child)) {
+                                in.transferTo(zos);
+                            }
+
+                            zos.closeEntry();
                         }
-
-                        zos.closeEntry();
                     }
                 }
+            }
+        } finally {
+            if (createdNewDir) {
+                listableDir.close();
             }
         }
     }
@@ -179,14 +192,31 @@ public class SmbFileClient {
     private void deleteRecursively(SmbFile file) throws IOException {
         if (file.isDirectory()) {
             String path = file.getPath();
+            boolean createdNewDir = !path.endsWith("/");
+            SmbFile dir = createdNewDir ? new SmbFile(path + "/", cifsContext) : file;
 
-            try (SmbFile dir = path.endsWith("/") ? file : new SmbFile(path + "/", cifsContext)) {
-                for (SmbFile child : dir.listFiles()) {
-                    try (child) {
-                        deleteRecursively(child);
+            try {
+                SmbFile[] children = dir.listFiles();
+                if (children != null) {
+                    for (SmbFile child : children) {
+                        try (child) {
+                            deleteRecursively(child);
+                        }
                     }
                 }
+            } finally {
+                if (createdNewDir) {
+                    dir.close();
+                }
             }
+        }
+
+        try {
+            if (!file.canWrite()) {
+                file.setReadWrite();
+            }
+        } catch (Exception e) {
+            logger.debug("Could not update write permissions for file {}: {}", file.getName(), e.getMessage());
         }
 
         file.delete();
@@ -230,6 +260,39 @@ public class SmbFileClient {
     public boolean workspaceExists(String name) throws IOException {
         try (SmbFile target = resolve(name.endsWith("/") ? name : name + "/")) {
             return target.exists();
+        }
+    }
+
+    public void deleteWorkspace(String name) throws IOException {
+        try (SmbFile workspaceDir = resolve(name.endsWith("/") ? name : name + "/")) {
+            if (!workspaceDir.exists()) {
+                throw new IllegalArgumentException("Workspace does not exist: " + name);
+            }
+
+            deleteRecursively(workspaceDir);
+        }
+    }
+
+    public void clearWorkspaceContents(String name) throws IOException {
+        try (SmbFile workspaceDir = resolve(name.endsWith("/") ? name : name + "/")) {
+            if (!workspaceDir.exists()) {
+                throw new FileNotFoundException("Workspace does not exist: " + name);
+            }
+
+            SmbFile[] children = workspaceDir.listFiles();
+            if (children != null) {
+                for (SmbFile child : children) {
+                    try (child) {
+                        deleteRecursively(child);
+                    } catch (IOException e) {
+                        // A child that vanished between listFiles() and here (another concurrent
+                        // op, or an overlapping clear()) isn't a failure — the goal was "gone,"
+                        // and it already is. Anything else (permissions, a genuine SMB fault)
+                        // still surfaces via the outer call failing loudly if it recurs.
+                        logger.warn("Skipping child during clear of workspace '{}': {} ({})", name, child.getName(), e.getMessage());
+                    }
+                }
+            }
         }
     }
 }

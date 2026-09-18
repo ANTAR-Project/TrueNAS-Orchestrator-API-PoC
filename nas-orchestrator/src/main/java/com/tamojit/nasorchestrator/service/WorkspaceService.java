@@ -18,4 +18,20 @@ public class WorkspaceService {
         smbFileClient.createWorkspaceDirectory(name);
         return new CreateWorkspaceResponse(name, "created");
     }
+
+    public void deleteWorkspace(String name) throws IOException {
+        if (name.equals("shared")) {
+            throw new IllegalArgumentException("Cannot delete shared workspace");
+        }
+
+        smbFileClient.deleteWorkspace(name);
+    }
+
+    public void clearWorkspace(String name) throws IOException {
+        if (name.equals("shared")) {
+            throw new IllegalArgumentException("Cannot delete shared workspace");
+        }
+
+        smbFileClient.clearWorkspaceContents(name);
+    }
 }

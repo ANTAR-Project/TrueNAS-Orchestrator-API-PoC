@@ -3,9 +3,9 @@ package com.tamojit.nasorchestrator.controller;
 import com.tamojit.nasorchestrator.dto.FileListResponse;
 import com.tamojit.nasorchestrator.dto.FileUploadResponse;
 import com.tamojit.nasorchestrator.dto.FolderUploadResponse;
-import com.tamojit.nasorchestrator.security.TokenValidationFilter;
 import com.tamojit.nasorchestrator.service.FileService;
 import com.tamojit.nasorchestrator.util.MimeTypeResolver;
+import com.tamojit.nasorchestrator.util.ScopeWorkspaceByUsername;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.constraints.Pattern;
@@ -31,26 +31,16 @@ public class FileController {
 
     private final FileService fileService;
     private final MimeTypeResolver mimeTypeResolver;
+    private final ScopeWorkspaceByUsername scopeWorkspaceByUsername;
 
-    public FileController(FileService fileService, MimeTypeResolver mimeTypeResolver) {
+    public FileController(
+        FileService fileService,
+        MimeTypeResolver mimeTypeResolver,
+        ScopeWorkspaceByUsername scopeWorkspaceByUsername
+    ) {
         this.fileService = fileService;
         this.mimeTypeResolver = mimeTypeResolver;
-    }
-
-    // Workspace scoping from token attribute (username)
-    private String scopedPath(HttpServletRequest request, String rawPath) {
-        String username = (String) request.getAttribute(TokenValidationFilter.USERNAME_ATTRIBUTE);
-
-        if (username == null || username.isBlank()) {
-            throw new IllegalStateException("No authenticated username on request");
-        }
-
-        String cleanRaw = rawPath == null ? "" : rawPath;
-        if (cleanRaw.isEmpty()) {
-            return username;
-        }
-
-        return username + "/" + cleanRaw;
+        this.scopeWorkspaceByUsername = scopeWorkspaceByUsername;
     }
 
     @PostMapping("/upload/file")
@@ -63,7 +53,7 @@ public class FileController {
         String path,
         @RequestParam("file") MultipartFile file
     ) throws IOException {
-        return ResponseEntity.ok(fileService.upload(scopedPath(request, path), file));
+        return ResponseEntity.ok(fileService.upload(scopeWorkspaceByUsername.scopedPath(request, path), file));
     }
 
     @PostMapping("/upload/folder")
@@ -77,7 +67,7 @@ public class FileController {
         @RequestParam("files") MultipartFile[] files,
         @RequestParam("relativePaths") String[] relativePaths
     ) throws IOException {
-        return ResponseEntity.ok(fileService.uploadFolder(scopedPath(request, path), files, relativePaths));
+        return ResponseEntity.ok(fileService.uploadFolder(scopeWorkspaceByUsername.scopedPath(request, path), files, relativePaths));
     }
 
     @GetMapping("/download")
@@ -90,7 +80,7 @@ public class FileController {
         String path,
         HttpServletResponse response
     ) throws IOException {
-        fileService.download(scopedPath(request, path), response);
+        fileService.download(scopeWorkspaceByUsername.scopedPath(request, path), response);
     }
 
     @GetMapping("/preview")
@@ -102,7 +92,7 @@ public class FileController {
         @Pattern(regexp = NO_LEADING_SLASH_REGEX, message = NO_LEADING_SLASH_MSG)
         String path
     ) throws IOException {
-        String scoped = scopedPath(request, path);
+        String scoped = scopeWorkspaceByUsername.scopedPath(request, path);
         String filename = scoped.substring(scoped.lastIndexOf('/') + 1);
 
         if (!mimeTypeResolver.isPreviewable(filename)) {
@@ -128,7 +118,7 @@ public class FileController {
         @Pattern(regexp = NO_LEADING_SLASH_REGEX, message = NO_LEADING_SLASH_MSG)
         String path
     ) throws IOException {
-        return ResponseEntity.ok(fileService.list(scopedPath(request, path)));
+        return ResponseEntity.ok(fileService.list(scopeWorkspaceByUsername.scopedPath(request, path)));
     }
 
     @DeleteMapping("/delete")
@@ -140,7 +130,7 @@ public class FileController {
         @Pattern(regexp = NO_LEADING_SLASH_REGEX, message = NO_LEADING_SLASH_MSG)
         String path
     ) throws IOException {
-        fileService.delete(scopedPath(request, path));
+        fileService.delete(scopeWorkspaceByUsername.scopedPath(request, path));
         return ResponseEntity.noContent().build();
     }
 }
