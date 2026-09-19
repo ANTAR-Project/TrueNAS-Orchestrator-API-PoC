@@ -62,4 +62,9 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handleWorkspaceAlreadyExists(WorkspaceAlreadyExistsException e) {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
     }
+
+    @ExceptionHandler(WorkspaceNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleWorkspaceNotFound(WorkspaceNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+    }
 }

@@ -29,7 +29,7 @@ public class WorkspaceService {
 
     public void clearWorkspace(String name) throws IOException {
         if (name.equals("shared")) {
-            throw new IllegalArgumentException("Cannot delete shared workspace");
+            throw new IllegalArgumentException("Cannot clear shared workspace by this function");
         }
 
         smbFileClient.clearWorkspaceContents(name);

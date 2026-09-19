@@ -5,6 +5,7 @@ import com.tamojit.nasorchestrator.dto.FileListResponse;
 import com.tamojit.nasorchestrator.dto.FileUploadResponse;
 import com.tamojit.nasorchestrator.dto.FileUploadResult;
 import com.tamojit.nasorchestrator.dto.FolderUploadResponse;
+import com.tamojit.nasorchestrator.exception.WorkspaceNotFoundException;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -42,14 +43,22 @@ public class FileService {
         return smbFileClient.preview(path);
     }
 
-    public FileListResponse list(String path) throws IOException {
+    public FileListResponse list(String path, String username) throws IOException {
+        if (path.equals(username) && !smbFileClient.workspaceExists(username)) {
+            throw new WorkspaceNotFoundException("Workspace does not exist for user: " + username);
+        }
+
         return new FileListResponse(
             path,
             smbFileClient.list(path)
         );
     }
 
-    public void delete(String path) throws IOException {
+    public void delete(String path, String username) throws IOException {
+        if (path.equals(username)) {
+            throw new IllegalArgumentException("Cannot delete the workspace root by this function");
+        }
+
         smbFileClient.delete(path);
     }
 

@@ -94,6 +94,10 @@ public class SmbFileClient {
         List<FileEntry> entries = new ArrayList<>();
 
         try (SmbFile dir = resolve(dirPath)) {
+            if (!dir.exists()) {
+                throw new FileNotFoundException("Not found on NAS: " + relativePath);
+            }
+
             for (SmbFile file : dir.listFiles()) {
                 try (file) {
                     entries.add(new FileEntry(
