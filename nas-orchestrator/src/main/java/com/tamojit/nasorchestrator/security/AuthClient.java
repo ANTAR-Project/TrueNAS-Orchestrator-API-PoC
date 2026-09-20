@@ -12,8 +12,9 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class AuthClient {
-    private final AuthGrpcServiceGrpc.AuthGrpcServiceBlockingStub authGrpcStub;
     private static final Logger logger = LoggerFactory.getLogger(AuthClient.class);
+
+    private final AuthGrpcServiceGrpc.AuthGrpcServiceBlockingStub authGrpcStub;
 
     public AuthClient(AuthGrpcServiceGrpc.AuthGrpcServiceBlockingStub authGrpcStub) {
         this.authGrpcStub = authGrpcStub;

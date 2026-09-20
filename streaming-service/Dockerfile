@@ -8,6 +8,7 @@ COPY streaming-service/pom.xml .
 RUN mvn dependency:go-offline -B # caching the dependencies on install
 
 COPY streaming-service/src ./src
+COPY proto /proto
 
 RUN mvn clean package -DskipTests # packaging the code into .jar
 

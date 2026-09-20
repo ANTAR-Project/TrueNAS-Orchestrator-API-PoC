@@ -1,39 +1,40 @@
 package com.tamojit.streamingservice.security;
 
-import com.tamojit.streamingservice.dto.ValidateResponse;
+import com.tamojit.grpc.auth.AuthGrpcServiceGrpc;
+import com.tamojit.grpc.auth.ValidateTokenRequest;
+import com.tamojit.grpc.auth.ValidateTokenResponse;
 import com.tamojit.streamingservice.dto.ValidationOutcome;
+import io.grpc.Status;
+import io.grpc.StatusRuntimeException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.client.RestClientResponseException;
 
 @Component
 public class AuthClient {
-    private final RestClient authServiceRestClient;
+    private static final Logger logger = LoggerFactory.getLogger(AuthClient.class);
 
-    public AuthClient(RestClient authServiceRestClient) {
-        this.authServiceRestClient = authServiceRestClient;
+    private final AuthGrpcServiceGrpc.AuthGrpcServiceBlockingStub authGrpcStub;
+
+    public AuthClient(AuthGrpcServiceGrpc.AuthGrpcServiceBlockingStub authGrpcStub) {
+        this.authGrpcStub = authGrpcStub;
     }
 
     public ValidationOutcome validate(String token) {
         try {
-            ValidateResponse response = authServiceRestClient.get()
-                .uri(uriBuilder -> uriBuilder
-                    .path("/api/v1/auth-service/tokens/validate")
-                    .queryParam("token", token)
-                    .build())
-                .retrieve()
-                .body(ValidateResponse.class);
-
-            return new ValidationOutcome(
-                true,
-                true,
-                response != null ? response.username() : null
+            ValidateTokenResponse response = authGrpcStub.validateToken(
+                ValidateTokenRequest.newBuilder()
+                    .setToken(token)
+                    .build()
             );
-        } catch (RestClientResponseException e) {
-            // auth-service reachable, token itself rejected (401/400)
-            return new ValidationOutcome(false, true, null);
-        } catch (Exception e) {
-            // auth-service unreachable
+            logger.info("Validate token response: {}", response);
+
+            return new ValidationOutcome(true, true, response.getUsername());
+        } catch (StatusRuntimeException e) {
+            if (e.getStatus().getCode() == Status.Code.UNAUTHENTICATED) {
+                return new ValidationOutcome(false, true, null);
+            }
+
             return new ValidationOutcome(false, false, null);
         }
     }

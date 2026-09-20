@@ -25,6 +25,11 @@ spring:
             value:
               default:
                 type: com.tamojit.streamingservice.event.VideoEncodedEvent
+  grpc:
+    client:
+      channels:
+        auth-service:
+          address: static://auth-service:4091
 
 server:
   port: 8084
