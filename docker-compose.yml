@@ -56,12 +56,14 @@ services:
   # nas-orchestrator
   nas-orchestrator:
     build:
-      context: ./nas-orchestrator
+      context: .
+      dockerfile: nas-orchestrator/Dockerfile
     container_name: nas-orchestrator
     env_file:
       - ./nas-orchestrator/.env
     ports:
       - "8081:8081"
+      - "4092:4092"
     depends_on:
       - redis
       - auth-service
@@ -71,7 +73,8 @@ services:
   # video-service
   video-service:
     build:
-      context: ./video-service
+      context: .
+      dockerfile: video-service/Dockerfile
     container_name: video-service
     env_file:
       - ./video-service/.env
@@ -86,7 +89,8 @@ services:
   # encoding-service
   encoding-service:
     build:
-      context: ./encoding-service
+      context: .
+      dockerfile: encoding-service/Dockerfile
     container_name: encoding-service
     env_file:
       - ./encoding-service/.env
@@ -101,7 +105,8 @@ services:
   # streaming-service
   streaming-service:
     build:
-      context: ./streaming-service
+      context: .
+      dockerfile: streaming-service/Dockerfile
     container_name: streaming-service
     env_file:
       - ./streaming-service/.env
@@ -118,12 +123,14 @@ services:
   # auth-service
   auth-service:
     build:
-      context: ./auth-service
+      context: .
+      dockerfile: auth-service/Dockerfile
     container_name: auth-service
     env_file:
       - ./auth-service/.env
     ports:
       - "8085:8085"
+      - "4091:4091"
     depends_on:
       - redis
     networks:

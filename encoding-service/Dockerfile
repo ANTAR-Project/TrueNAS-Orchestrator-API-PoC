@@ -3,11 +3,11 @@ FROM maven:3.9.9-eclipse-temurin-21 AS builder
 
 WORKDIR /app
 
-COPY pom.xml .
+COPY encoding-service/pom.xml .
 
 RUN mvn dependency:go-offline -B # caching the dependencies on install
 
-COPY src ./src
+COPY encoding-service/src ./src
 
 RUN mvn clean package -DskipTests # packaging the code into .jar
 

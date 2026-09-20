@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package com.tamojit.grpc.auth;
+
+option java_multiple_files = true;
+option java_package = "com.tamojit.grpc.auth";
+
+service AuthGrpcService {
+  rpc ValidateToken (ValidateTokenRequest) returns (ValidateTokenResponse);
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+}
+
+message ValidateTokenResponse {
+  string username = 1;
+}
