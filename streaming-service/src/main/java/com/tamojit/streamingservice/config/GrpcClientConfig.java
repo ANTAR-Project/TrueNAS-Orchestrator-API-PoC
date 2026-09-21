@@ -9,6 +9,6 @@ import org.springframework.grpc.client.GrpcChannelFactory;
 public class GrpcClientConfig {
     @Bean
     public AuthGrpcServiceGrpc.AuthGrpcServiceBlockingStub authGrpcStub(GrpcChannelFactory channels) {
-        return AuthGrpcServiceGrpc.newBlockingStub(channels.createChannel("streaming-service"));
+        return AuthGrpcServiceGrpc.newBlockingStub(channels.createChannel("auth-service"));
     }
 }

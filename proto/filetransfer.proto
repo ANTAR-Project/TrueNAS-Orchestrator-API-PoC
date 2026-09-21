@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package com.tamojit.grpc.filetransfer;
+
+option java_multiple_files = true;
+option java_package = "com.tamojit.grpc.filetransfer";
+
+service FileTransferGrpcService {
+  rpc UploadFile (stream FileChunk) returns (UploadResponse);
+  rpc DownloadFile (DownloadRequest) returns (stream FileChunk);
+}
+
+message FileChunk {
+  // Only populated on the FIRST message of an upload stream — tells the
+  // server where to write. Every subsequent chunk in the same call only
+  // carries bytes.
+  string destination_path = 1;
+  bytes content = 2;
+}
+
+message DownloadRequest {
+  string path = 1;
+}
+
+message UploadResponse {
+  string path = 1;
+  string message = 2;
+}

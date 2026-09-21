@@ -12,6 +12,11 @@ spring:
     multipart:
       max-file-size: 2GB
       max-request-size: 2GB
+  grpc:
+    client:
+      channels:
+        nas-orchestrator:
+          address: static://nas-orchestrator:4092
 
 server:
   port: 8082

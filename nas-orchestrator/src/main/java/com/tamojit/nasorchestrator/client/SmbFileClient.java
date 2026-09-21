@@ -248,6 +248,28 @@ public class SmbFileClient {
         }
     }
 
+    public OutputStream openForWrite(String relativePath) throws IOException {
+        if (relativePath == null || relativePath.isBlank()) {
+            throw new IllegalArgumentException("Invalid relative path: " + relativePath);
+        }
+
+        SmbFile target = resolve(relativePath);
+
+        try (SmbFile parentDir = new SmbFile(target.getParent(), cifsContext)) {
+            if (!parentDir.exists()) {
+                parentDir.mkdirs();
+            }
+        }
+
+        return new  SmbFileOutputStream(target);
+    }
+
+    public void writeBytes(String relativePath, byte[] content) throws IOException {
+        try (OutputStream outputStream = openForWrite(relativePath)) {
+            outputStream.write(content);
+        }
+    }
+
     public void createWorkspaceDirectory(String name) throws IOException {
         SmbFile target = resolve(name.endsWith("/") ? name : name + "/");
 
