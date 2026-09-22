@@ -30,6 +30,8 @@ spring:
       channels:
         auth-service:
           address: static://auth-service:4091
+        nas-orchestrator:
+          address: static://nas-orchestrator:4092
 
 server:
   port: 8084

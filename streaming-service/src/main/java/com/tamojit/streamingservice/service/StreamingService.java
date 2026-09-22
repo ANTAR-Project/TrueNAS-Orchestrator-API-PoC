@@ -1,17 +1,19 @@
 package com.tamojit.streamingservice.service;
 
+import com.tamojit.grpc.streaming.PlaylistRequest;
+import com.tamojit.grpc.streaming.PlaylistResponse;
+import com.tamojit.grpc.streaming.StreamingGrpcServiceGrpc;
+import com.tamojit.streamingservice.grpc.PerCallTokenAttacher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
-
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class StreamingService {
-    private final RestClient nasOrchestratorRestClient; // bean, baseUrl = nas.orchestrator.base-url
+    private final StreamingGrpcServiceGrpc.StreamingGrpcServiceBlockingStub streamingGrpcStub;
+    private final PerCallTokenAttacher tokenAttacher;
 
     /**
      * Proxies the HLS master (or variant) playlist from nas-orchestrator.
@@ -22,13 +24,15 @@ public class StreamingService {
      */
     public String getPlaylist(String path, String token) {
         log.info("Fetching playlist from nas-orchestrator for path: {}", path);
-        return nasOrchestratorRestClient.get()
-            .uri(uriBuilder -> uriBuilder
-                .path("/api/v1/nas-orchestrator/stream/playlist")
-                .queryParam("path", path)
-                .queryParamIfPresent("token", Optional.ofNullable(token))
-                .build())
-            .retrieve()
-            .body(String.class);
+
+        PlaylistResponse response = tokenAttacher.attach(streamingGrpcStub, token)
+            .getRewrittenPlaylist(
+                PlaylistRequest.newBuilder()
+                    .setPath(path)
+                    .setToken(token != null ? token : "")
+                    .build()
+            );
+
+        return response.getContent();
     }
 }
