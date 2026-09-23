@@ -1,4 +1,4 @@
-package com.tamojit.streamingservice.dto;
+package com.tamojit.videoservice.dto;
 
 public record ValidationOutcome(
     boolean valid,

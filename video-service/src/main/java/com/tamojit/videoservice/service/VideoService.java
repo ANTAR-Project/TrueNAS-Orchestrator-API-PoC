@@ -19,24 +19,22 @@ public class VideoService {
 
     private static final String VIDEO_UPLOADED_TOPIC = "video.uploaded"; // kafka topic
 
-    public String uploadVideo(String movieId, MultipartFile file) throws IOException {
-        log.info("Uploading video {} to NAS : file - {}", movieId, file.getOriginalFilename());
+    public String uploadVideo(String path, MultipartFile file) throws IOException {
+        log.info("Uploading video {} to NAS : file - {}", path, file.getOriginalFilename());
 
-        // format: raw/{movieId}   (nas-orchestrator names the file after the original filename)
-        String dirPath = "raw/" + movieId;
-        String nasPath = nasOrchestratorClient.uploadFile(dirPath, file);
+        String nasPath = nasOrchestratorClient.uploadFile(path, file);
         log.info("Video uploaded to NAS successfully: path = {}", nasPath);
 
         // Publishing upload event to kafka - for encoding-service to start ffmpeg encoding
-        VideoUploadedEvent videoUploadedEvent = new VideoUploadedEvent(
-            movieId,
-            nasPath,
-            file.getOriginalFilename(),
-            file.getSize()
-        );
-
-        kafkaTemplate.send(VIDEO_UPLOADED_TOPIC, movieId, videoUploadedEvent);
-        log.info("Video uploaded event published to Kafka: key = {}", nasPath);
+//        VideoUploadedEvent videoUploadedEvent = new VideoUploadedEvent(
+//            path,
+//            nasPath,
+//            file.getOriginalFilename(),
+//            file.getSize()
+//        );
+//
+//        kafkaTemplate.send(VIDEO_UPLOADED_TOPIC, path, videoUploadedEvent);
+//        log.info("Video uploaded event published to Kafka: key = {}", nasPath);
 
         return nasPath;
     }

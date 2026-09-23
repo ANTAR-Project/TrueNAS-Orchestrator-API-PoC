@@ -1,9 +1,9 @@
-package com.tamojit.streamingservice.security;
+package com.tamojit.videoservice.security;
 
 import com.tamojit.grpc.auth.AuthGrpcServiceGrpc;
 import com.tamojit.grpc.auth.ValidateTokenRequest;
 import com.tamojit.grpc.auth.ValidateTokenResponse;
-import com.tamojit.streamingservice.dto.ValidationOutcome;
+import com.tamojit.videoservice.dto.ValidationOutcome;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import org.slf4j.Logger;

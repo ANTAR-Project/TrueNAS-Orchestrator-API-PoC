@@ -1,6 +1,6 @@
-package com.tamojit.streamingservice.security;
+package com.tamojit.videoservice.security;
 
-import com.tamojit.streamingservice.dto.ValidationOutcome;
+import com.tamojit.videoservice.dto.ValidationOutcome;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -79,5 +79,8 @@ public class TokenValidationFilter extends OncePerRequestFilter {
         response.setStatus(status);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.getWriter().write("{\"error\":\"" + message.replace("\"", "'") + "\"}");
+        // Flush immediately — without this, Tomcat buffers the response and waits for the full
+        // multipart request body to be consumed before sending it, causing a silent hang on large uploads
+        response.flushBuffer();
     }
 }

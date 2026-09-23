@@ -17,6 +17,8 @@ spring:
       channels:
         nas-orchestrator:
           address: static://nas-orchestrator:4092
+        auth-service:
+          address: static://auth-service:4091
 
 server:
   port: 8082

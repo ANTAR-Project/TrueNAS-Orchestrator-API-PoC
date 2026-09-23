@@ -2,11 +2,10 @@ package com.tamojit.videoservice.grpc;
 
 import com.tamojit.videoservice.security.ServiceAuthTokenProvider;
 import io.grpc.*;
-import org.springframework.grpc.client.GlobalClientInterceptor;
-import org.springframework.stereotype.Component;
 
-@Component
-@GlobalClientInterceptor
+// Not @GlobalClientInterceptor — only applied to the nas-orchestrator stub in GrpcClientConfig.
+// Applying this globally would intercept the authGrpcStub calls too, triggering tokenProvider.getToken()
+// (a blocking REST call) from inside the TokenValidationFilter's own gRPC auth call.
 public class GrpcAuthClientInterceptor implements ClientInterceptor {
     private static final Metadata.Key<String> AUTH_TOKEN_METADATA_KEY = Metadata.Key.of("x-auth-token", Metadata.ASCII_STRING_MARSHALLER);
 
