@@ -43,10 +43,10 @@ public class EncodingService {
     );
 
     public void encodeVideo(VideoUploadedEvent event) {
-        log.info("Video encoded event received: {}", event.getMovieId());
+        log.info("Video encoded event received: {}", event.getNasPath());
 
         // creating unique path for temp download of video
-        String jobPath = basePath + "/" + event.getMovieId();
+        String jobPath = basePath + "/" + event.getOriginalFileName();
 
         try {
             // creating temp directories
@@ -55,7 +55,7 @@ public class EncodingService {
 
             // S1: downloading raw file from NAS
             String localVideoPath = jobPath + "/raw_video.mp4";
-            nasOrchestratorClient.downloadToFile(event.getVideoPath(), Path.of(localVideoPath));
+            nasOrchestratorClient.downloadToFile(event.getNasPath(), Path.of(localVideoPath));
             log.info("Raw Video downloaded to: {}", localVideoPath);
 
             // S2, S3: Encoding to multiple qualities & generating HLS playlist
@@ -77,7 +77,7 @@ public class EncodingService {
             log.info("Master playlist generated successfully");
 
             // S5: uploading all encoded files to NAS in one folder upload
-            String encodedBasePath = "encoded/" + event.getMovieId();
+            String encodedBasePath = buildEncodedBasePath(event);
             nasOrchestratorClient.uploadFolder(encodedBasePath, new File(jobPath + "/encoded"));
             log.info("All encoded files uploaded to NAS successfully");
 
@@ -85,26 +85,26 @@ public class EncodingService {
             String masterPlaylistPath = encodedBasePath + "/master.m3u8";
 
             VideoEncodedEvent encodedEvent = new VideoEncodedEvent(
-                event.getMovieId(),
+                event.getNasPath(),
                 masterPlaylistPath,
                 true,
                 null
             );
 
-            kafkaTemplate.send(VIDEO_ENCODED_TOPIC, event.getMovieId(), encodedEvent);
-            log.info("Video encoded event published for movie: {}", event.getMovieId());
+            kafkaTemplate.send(VIDEO_ENCODED_TOPIC, event.getNasPath(), encodedEvent);
+            log.info("Video encoded event published for movie: {}", event.getNasPath());
         } catch (Exception e) {
-            log.error("Encoding failed for movie: {} - {}", event.getMovieId(), e.getMessage());
+            log.error("Encoding failed for movie: {} - {}", event.getNasPath(), e.getMessage());
 
             // publishing failure event (Fixed to 4 args)
             VideoEncodedEvent failureEvent = new VideoEncodedEvent(
-                event.getMovieId(),
+                event.getNasPath(),
                 null,
                 false,
                 e.getMessage()
             );
 
-            kafkaTemplate.send(VIDEO_ENCODED_TOPIC, event.getMovieId(), failureEvent);
+            kafkaTemplate.send(VIDEO_ENCODED_TOPIC, event.getNasPath(), failureEvent);
         } finally {
             // cleanup job
             cleanupTempFiles(jobPath);
@@ -170,6 +170,19 @@ public class EncodingService {
         }
 
         Files.writeString(Paths.get(masterPlaylistPath), master.toString());
+    }
+
+    private String stripExtension(String filename) {
+        int lastDot = filename.lastIndexOf('.');
+        return lastDot > 0 ? filename.substring(0, lastDot) : filename;
+    }
+
+    private String buildEncodedBasePath(VideoUploadedEvent event) {
+        String pathSegment = (event.getPath() == null || event.getPath().isBlank())
+            ? ""
+            : event.getPath() + "/";
+
+        return event.getWorkspaceRoot() + "/encoded/" + pathSegment + stripExtension(event.getOriginalFileName());
     }
 
     // cleanup job after encoding

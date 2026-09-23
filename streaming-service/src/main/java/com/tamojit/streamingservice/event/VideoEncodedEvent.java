@@ -15,8 +15,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class VideoEncodedEvent {
-    private String movieId;
-    private String masterPlaylistPath;  // was "masterPlaylistKey" — mismatched with producer, always deserialized as null
+    private String nasPath;
+    private String masterPlaylistPath;
     private boolean success;
     private String errorMessage;
 }

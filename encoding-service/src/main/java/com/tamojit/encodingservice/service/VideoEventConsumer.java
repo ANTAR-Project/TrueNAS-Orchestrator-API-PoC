@@ -62,13 +62,13 @@ public class VideoEventConsumer {
         VideoUploadedEvent event,
         Acknowledgment acknowledgment
     ) {
-        log.info("Consumed VideoUploadedEvent for movie: {}, file: {}", event.getMovieId(), event.getOriginalFileName());
+        log.info("Consumed VideoUploadedEvent for movie: {}, file: {}", event.getNasPath(), event.getOriginalFileName());
 
         // Step 1: Pause the container — thread-safe via Spring Kafka's registry.
         // Applied on the next poll() cycle by the listener thread itself.
         MessageListenerContainer container = registry.getListenerContainer(CONTAINER_ID);
         container.pause();
-        log.info("Paused container '{}' for movie: {}", CONTAINER_ID, event.getMovieId());
+        log.info("Paused container '{}' for movie: {}", CONTAINER_ID, event.getNasPath());
 
         // Step 2: Commit offset immediately — message is "owned", won't be redelivered.
         acknowledgment.acknowledge();
@@ -79,11 +79,11 @@ public class VideoEventConsumer {
             try {
                 encodingService.encodeVideo(event);
             } catch (Exception e) {
-                log.error("Encoding executor failed for movie: {} - {}", event.getMovieId(), e.getMessage());
+                log.error("Encoding executor failed for movie: {} - {}", event.getNasPath(), e.getMessage());
             } finally {
                 // Step 4: Resume the container — thread-safe via Spring Kafka's registry.
                 container.resume();
-                log.info("Resumed container '{}' after encoding movie: {}", CONTAINER_ID, event.getMovieId());
+                log.info("Resumed container '{}' after encoding movie: {}", CONTAINER_ID, event.getNasPath());
             }
         });
     }

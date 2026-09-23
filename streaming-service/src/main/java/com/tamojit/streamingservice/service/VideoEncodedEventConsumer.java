@@ -24,15 +24,15 @@ public class VideoEncodedEventConsumer {
         groupId = "streaming-service-group"
     )
     public void consumeVideoEncodedEvent(VideoEncodedEvent event) {
-        log.info("Consumed video.encoded event for movie: {} - success: {}", event.getMovieId(), event.isSuccess());
+        log.info("Consumed video.encoded event for movie: {} - success: {}", event.getNasPath(), event.isSuccess());
 
         if (event.isSuccess()) {
             // storing master playlist in redis
-            String cacheKey = MASTER_PLAYLIST_KEY_PREFIX + event.getMovieId();
+            String cacheKey = MASTER_PLAYLIST_KEY_PREFIX + event.getNasPath();
             redisTemplate.opsForValue().set(cacheKey, event.getMasterPlaylistPath());
-            log.info("Successfully cached playlist path for movie: {} → {}", event.getMovieId(), event.getMasterPlaylistPath());
+            log.info("Successfully cached playlist path for movie: {} → {}", event.getNasPath(), event.getMasterPlaylistPath());
         } else {
-            log.error("Encoding failed for movie: {} - {}", event.getMovieId(), event.getErrorMessage());
+            log.error("Encoding failed for movie: {} - {}", event.getNasPath(), event.getErrorMessage());
         }
     }
 }

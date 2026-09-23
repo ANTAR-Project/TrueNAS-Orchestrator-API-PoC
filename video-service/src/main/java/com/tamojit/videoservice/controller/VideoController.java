@@ -30,7 +30,6 @@ public class VideoController {
     private static final String NO_LEADING_SLASH_MSG = "Path must be relative — do not start with '/'";
 
     private final VideoService videoService;
-    private final ScopeWorkspaceByUsername scopeWorkspaceByUsername;
 
     // upload multipart file (video)
     @PostMapping("/upload")
@@ -43,14 +42,13 @@ public class VideoController {
         String path,
         @RequestParam("file") MultipartFile file
     ) throws IOException {
-        String scopedPath = scopeWorkspaceByUsername.scopedPath(request, path);
-        log.info("Video upload request for movie ID {}, size = {} MB", scopedPath, file.getSize() / (1024 * 1024));
+        log.info("Video upload request of size = {} MB", file.getSize() / (1024 * 1024));
 
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("File is empty");
         }
 
-        String videoKey = videoService.uploadVideo(scopedPath, file);
+        String videoKey = videoService.uploadVideo(path, file, request);
 
         return ResponseEntity.ok("video uploaded successfully! Key = " + videoKey + " : Encoding started automatically via Kafka");
     }
