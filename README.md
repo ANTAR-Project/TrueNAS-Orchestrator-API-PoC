@@ -30,15 +30,15 @@ flowchart LR
     end
 
     subgraph Core
-        NAS[nas-orchestrator\nHTTP :8081 | gRPC :4092]
-        AUTH[auth-service\nHTTP :8085 | gRPC :4091]
+        NAS["nas-orchestrator\nHTTP :8081 | gRPC :4092"]
+        AUTH["auth-service\nHTTP :8085 | gRPC :4091"]
         ENC[encoding-service\nHTTP :8083]
     end
 
     subgraph Infra
         KAFKA[(Kafka)]
         REDIS[(Redis)]
-        TRUENAS[(TrueNAS SCALE\nSMB share + REST API)]
+        TRUENAS[("TrueNAS SCALE\nSMB share + REST API")]
     end
 
     Client -- "1. POST /api/v1/videos/upload?path=..." --> VS
