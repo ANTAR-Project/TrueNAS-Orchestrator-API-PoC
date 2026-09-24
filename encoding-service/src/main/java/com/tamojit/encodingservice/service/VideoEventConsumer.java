@@ -41,13 +41,17 @@ public class VideoEventConsumer {
      * Uses pause/resume + manual ack to decouple the Kafka listener thread from
      * the (potentially hours-long) FFmpeg encoding job:
      *
-     *  1. Pause the container  → no new messages delivered while encoding is running
-     *  2. Commit the offset    → message is "taken"; no redelivery even if we restart
-     *  3. Return immediately   → listener thread keeps calling poll(), Kafka never
-     *                            evicts the consumer regardless of encoding duration
-     *  4. Encode on async thread
-     *  5. Resume the container → ready for next message
+     *  1. Pause the container  → no new messages delivered while encoding is running.
+     *  2. Return immediately   → listener thread keeps calling poll(); Kafka never
+     *                            evicts the consumer regardless of encoding duration.
+     *  3. Encode on async thread.
+     *  4. Commit the offset    → acked AFTER the result event is published, so a JVM
+     *                            crash or OOM causes redelivery rather than silent loss.
+     *                            Spring Kafka MANUAL mode allows acknowledge() from any
+     *                            thread while the container is paused.
+     *  5. Resume the container → ready for next message.
      *
+     * Delivery guarantee: at-least-once. encodeVideo() must therefore be idempotent
      * FLOW:
      * video-service → NAS upload → Kafka (video.uploaded) → encoding-service
      *   → ffmpeg HLS encoding → NAS encoded upload → Kafka (video.encoded)
@@ -64,16 +68,14 @@ public class VideoEventConsumer {
     ) {
         log.info("Consumed VideoUploadedEvent for movie: {}, file: {}", event.getNasPath(), event.getOriginalFileName());
 
-        // Step 1: Pause the container — thread-safe via Spring Kafka's registry.
+        // Step 1: Pausing the container — thread-safe via Spring Kafka's registry.
         // Applied on the next poll() cycle by the listener thread itself.
         MessageListenerContainer container = registry.getListenerContainer(CONTAINER_ID);
+        assert container != null;
         container.pause();
         log.info("Paused container '{}' for movie: {}", CONTAINER_ID, event.getNasPath());
 
-        // Step 2: Commit offset immediately — message is "owned", won't be redelivered.
-        acknowledgment.acknowledge();
-
-        // Step 3: Offload encoding to the dedicated worker thread and return.
+        // Step 2: Offloading encoding to the dedicated worker thread and return immediately.
         // The listener thread is now free to poll() Kafka on schedule.
         encodingExecutor.submit(() -> {
             try {
@@ -81,6 +83,12 @@ public class VideoEventConsumer {
             } catch (Exception e) {
                 log.error("Encoding executor failed for movie: {} - {}", event.getNasPath(), e.getMessage());
             } finally {
+                // Step 3: Commiting the offset AFTER encoding (success or failure).
+                // A JVM kill before this point causes redelivery — intentional at-least-once semantics.
+                // Spring Kafka allows acknowledge() from a non-listener thread in MANUAL mode.
+                acknowledgment.acknowledge();
+                log.info("Kafka offset committed for movie: {}", event.getNasPath());
+
                 // Step 4: Resume the container — thread-safe via Spring Kafka's registry.
                 container.resume();
                 log.info("Resumed container '{}' after encoding movie: {}", CONTAINER_ID, event.getNasPath());

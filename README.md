@@ -118,25 +118,33 @@ If `SMB_BOOTSTRAP_ENABLED=true` (default), `StorageBoostrapService` runs on nas-
 ### 3.1 `nas-orchestrator` (`:8081` HTTP / `:4092` gRPC)
 
 #### User Files API (`/api/v1/nas-orchestrator/files`) — *Protected*
-| Method | Endpoint | Query / Body Params | Description |
-|---|---|---|---|
-| `POST` | `/upload/file` | `path` (query, optional), `file` (multipart) | Upload a single file into the caller's scoped workspace (`{username}/{path}/{filename}`) |
-| `POST` | `/upload/folder` | `path` (query, optional), `files` (multipart array), `relativePaths` (string array) | Upload a directory hierarchy into the caller's workspace |
-| `GET` | `/download` | `path` (query) | Stream-download a file from the caller's workspace |
-| `GET` | `/preview` | `path` (query) | Stream-preview an inline media or text file from the caller's workspace |
-| `GET` | `/list` | `path` (query, optional) | List files and folders in the caller's workspace directory |
-| `DELETE` | `/delete` | `path` (query) | Delete a file or directory from the caller's workspace |
+
+All `path` parameters are validated at the controller layer: no `..` traversal, no backslashes, no leading `/`.
+
+| Method | Endpoint | Query / Body Params | Response | Description |
+|---|---|---|---|---|
+| `POST` | `/upload/file` | `path` (query, optional), `file` (multipart) | `200 FileUploadResponse` | Upload a single file into the caller's scoped workspace (`{username}/{path}/{filename}`) |
+| `POST` | `/upload/folder` | `path` (query, optional), `files` (multipart array), `relativePaths` (string array) | `200 FolderUploadResponse` | Upload a directory hierarchy into the caller's workspace |
+| `POST` | `/mkdir` | `path` (query, **required**) | `201 CreateFolderResponse` | Create a folder (and any intermediate directories) inside the caller's scoped workspace |
+| `GET` | `/download` | `path` (query) | `200` (streamed binary) | Stream-download a file from the caller's workspace |
+| `GET` | `/preview` | `path` (query) | `200` (inline media) / `415` if not previewable | Stream-preview an inline media or text file from the caller's workspace |
+| `GET` | `/list` | `path` (query, optional) | `200 FileListResponse` | List files and folders in the caller's workspace directory |
+| `DELETE` | `/delete` | `path` (query) | `204 No Content` | Delete a file or directory from the caller's workspace |
 
 #### Shared Workspace API (`/api/v1/nas-orchestrator/shared`) — *Protected*
-| Method | Endpoint | Query / Body Params | Description |
-|---|---|---|---|
-| `GET` | `/list` | `path` (query, optional) | List files and folders in the shared workspace |
-| `POST` | `/upload/file` | `path` (query, optional), `file` (multipart) | Upload a single file into the shared workspace |
-| `POST` | `/upload/folder` | `path` (query, optional), `files` (multipart array), `relativePaths` (string array) | Upload a folder hierarchy into the shared workspace |
-| `GET` | `/download` | `path` (query) | Stream-download a file from the shared workspace |
-| `GET` | `/preview` | `path` (query) | Preview an inline file in the shared workspace |
-| `DELETE` | `/delete` | `path` (query) | Delete a file or folder from the shared workspace |
-| `DELETE` | `/clear` | — | Purge all files in the shared workspace |
+
+All `path` parameters are validated at the controller layer: no `..` traversal, no backslashes, no leading `/`. The shared workspace is **not** username-scoped — all authenticated users share a single root directory.
+
+| Method | Endpoint | Query / Body Params | Response | Description |
+|---|---|---|---|---|
+| `GET` | `/list` | `path` (query, optional) | `200 FileListResponse` | List files and folders in the shared workspace |
+| `POST` | `/upload/file` | `path` (query, optional), `file` (multipart) | `200 FileUploadResponse` | Upload a single file into the shared workspace |
+| `POST` | `/upload/folder` | `path` (query, optional), `files` (multipart array), `relativePaths` (string array) | `200 FolderUploadResponse` | Upload a folder hierarchy into the shared workspace |
+| `POST` | `/mkdir` | `path` (query, **required**) | `201 CreateFolderResponse` | Create a folder (and any intermediate directories) inside the shared workspace |
+| `GET` | `/download` | `path` (query) | `200` (streamed binary) | Stream-download a file from the shared workspace |
+| `GET` | `/preview` | `path` (query) | `200` (inline media) / `415` if not previewable | Preview an inline file in the shared workspace |
+| `DELETE` | `/delete` | `path` (query) | `204 No Content` | Delete a file or folder from the shared workspace |
+| `DELETE` | `/clear` | — | `204 No Content` | Purge **all** files in the shared workspace |
 
 #### Workspace Management API (`/api/v1/nas-orchestrator/workspace`) — *Protected*
 | Method | Endpoint | Body Params | Description |

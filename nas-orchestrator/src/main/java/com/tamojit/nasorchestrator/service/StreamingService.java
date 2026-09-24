@@ -30,8 +30,6 @@ public class StreamingService {
     private final String shareBaseUrl;
     private final SmbFileClient smbFileClient;
 
-    // separate, bounded pool for SMB reads — keeps a burst of cache misses from starving the HTTP request-handling threads (production doc §7)
-    private final ExecutorService smbExecutor = Executors.newFixedThreadPool(8);
     // prefetch runs on its own, smaller pool so on-demand reads never queue behind it
     private final ExecutorService prefetchExecutor = Executors.newFixedThreadPool(3);
 
@@ -102,10 +100,11 @@ public class StreamingService {
             // must be routed to /stream/playlist so they get recursively rewritten.
             // Segment files (.ts) go to /stream/segment for the cache+SMB read path.
             String fullPath = basePath + trimmed;
+            String encodedPath = URLEncoder.encode(fullPath, StandardCharsets.UTF_8);
             if (trimmed.endsWith(".m3u8")) {
-                rewritten.append("/api/v1/nas-orchestrator/stream/playlist?path=").append(fullPath).append(tokenSuffix).append("\n");
+                rewritten.append("/api/v1/nas-orchestrator/stream/playlist?path=").append(encodedPath).append(tokenSuffix).append("\n");
             } else {
-                rewritten.append("/api/v1/nas-orchestrator/stream/segment?path=").append(fullPath).append(tokenSuffix).append("\n");
+                rewritten.append("/api/v1/nas-orchestrator/stream/segment?path=").append(encodedPath).append(tokenSuffix).append("\n");
             }
         }
 
