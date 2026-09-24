@@ -1,5 +1,6 @@
 package com.tamojit.nasorchestrator.controller;
 
+import com.tamojit.nasorchestrator.dto.CreateFolderResponse;
 import com.tamojit.nasorchestrator.dto.FileListResponse;
 import com.tamojit.nasorchestrator.dto.FileUploadResponse;
 import com.tamojit.nasorchestrator.dto.FolderUploadResponse;
@@ -120,6 +121,18 @@ public class SharedWorkspaceController {
     ) throws IOException {
         sharedWorkspaceService.deleteFromSharedWorkspace(path);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/mkdir")
+    public ResponseEntity<CreateFolderResponse> mkdir(
+        @RequestParam("path")
+        @Pattern(regexp = NO_TRAVERSAL_REGEX, message = NO_TRAVERSAL_MSG)
+        @Pattern(regexp = NO_BACKSLASH_REGEX, message = NO_BACKSLASH_MSG)
+        @Pattern(regexp = NO_LEADING_SLASH_REGEX, message = NO_LEADING_SLASH_MSG)
+        String path
+    ) throws IOException {
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(sharedWorkspaceService.createFolderInSharedWorkspace(path));
     }
 
     @DeleteMapping("/clear")

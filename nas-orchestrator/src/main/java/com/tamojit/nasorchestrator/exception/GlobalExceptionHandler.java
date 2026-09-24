@@ -63,8 +63,18 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
     }
 
+    @ExceptionHandler(FolderAlreadyExistsException.class)
+    public ResponseEntity<Map<String, String>> handleFolderAlreadyExists(FolderAlreadyExistsException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("error", e.getMessage()));
+    }
+
     @ExceptionHandler(WorkspaceNotFoundException.class)
     public ResponseEntity<Map<String, String>> handleWorkspaceNotFound(WorkspaceNotFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("error", e.getMessage()));
+    }
+
+    @ExceptionHandler(EncodedFolderAccessException.class)
+    public ResponseEntity<Map<String, String>> handleEncodedFolderAccess(EncodedFolderAccessException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
     }
 }

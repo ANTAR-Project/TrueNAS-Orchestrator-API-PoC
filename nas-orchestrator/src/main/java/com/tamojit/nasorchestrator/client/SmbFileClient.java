@@ -1,6 +1,7 @@
 package com.tamojit.nasorchestrator.client;
 
 import com.tamojit.nasorchestrator.dto.FileEntry;
+import com.tamojit.nasorchestrator.exception.FolderAlreadyExistsException;
 import com.tamojit.nasorchestrator.exception.WorkspaceAlreadyExistsException;
 import jakarta.servlet.http.HttpServletResponse;
 import jcifs.CIFSContext;
@@ -267,6 +268,25 @@ public class SmbFileClient {
     public void writeBytes(String relativePath, byte[] content) throws IOException {
         try (OutputStream outputStream = openForWrite(relativePath)) {
             outputStream.write(content);
+        }
+    }
+
+    public void createDirectory(String relativePath) throws IOException {
+        String cleanPath = relativePath.startsWith("/") ? relativePath.substring(1) : relativePath;
+
+        if (cleanPath.isEmpty()) {
+            throw new IllegalArgumentException("Folder path must not be empty — cannot create at share root");
+        }
+
+        // Ensure the path resolves as a directory URL (trailing slash required by jCIFS)
+        String dirPath = cleanPath.endsWith("/") ? cleanPath : cleanPath + "/";
+
+        try (SmbFile target = resolve(dirPath)) {
+            if (target.exists()) {
+                throw new FolderAlreadyExistsException("Folder already exists: " + relativePath);
+            }
+
+            target.mkdirs();
         }
     }
 

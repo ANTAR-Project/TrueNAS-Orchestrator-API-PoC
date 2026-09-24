@@ -31,9 +31,7 @@ public class StreamingController {
     private final RedisTemplate<String, String> redisTemplate;
 
     /**
-     * Resolves the movie's NAS-relative playlist path from Redis, then proxies
-     * the raw M3U8 content through from nas-orchestrator.
-     *
+     * Resolves the movie's NAS-relative playlist path from Redis, then proxies the raw M3U8 content through from nas-orchestrator.
      * Segment requests are NOT routed through streaming-service — the playlist
      * returned by nas-orchestrator already rewrites segment URIs to point
      * directly at /api/v1/nas-orchestrator/stream/segment, so the client

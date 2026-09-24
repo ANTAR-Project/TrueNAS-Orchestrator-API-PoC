@@ -1,5 +1,6 @@
 package com.tamojit.nasorchestrator.controller;
 
+import com.tamojit.nasorchestrator.dto.CreateFolderResponse;
 import com.tamojit.nasorchestrator.dto.FileListResponse;
 import com.tamojit.nasorchestrator.dto.FileUploadResponse;
 import com.tamojit.nasorchestrator.dto.FolderUploadResponse;
@@ -139,5 +140,21 @@ public class FileController {
 
         fileService.delete(scopedPath, username);
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/mkdir")
+    public ResponseEntity<CreateFolderResponse> mkdir(
+        HttpServletRequest request,
+        @RequestParam("path")
+        @Pattern(regexp = NO_TRAVERSAL_REGEX, message = NO_TRAVERSAL_MSG)
+        @Pattern(regexp = NO_BACKSLASH_REGEX, message = NO_BACKSLASH_MSG)
+        @Pattern(regexp = NO_LEADING_SLASH_REGEX, message = NO_LEADING_SLASH_MSG)
+        String path
+    ) throws IOException {
+        String scopedPath = scopeWorkspaceByUsername.scopedPath(request, path);
+        String username = (String) request.getAttribute(TokenValidationFilter.USERNAME_ATTRIBUTE);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+            .body(fileService.createFolder(scopedPath, username));
     }
 }
