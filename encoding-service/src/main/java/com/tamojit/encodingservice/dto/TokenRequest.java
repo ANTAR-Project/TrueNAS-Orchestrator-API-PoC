@@ -1,4 +1,4 @@
 package com.tamojit.encodingservice.dto;
 
-public record TokenRequest(String username) {
+public record TokenRequest(String username, String password) {
 }

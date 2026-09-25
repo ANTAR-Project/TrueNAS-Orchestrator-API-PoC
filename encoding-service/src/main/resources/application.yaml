@@ -51,6 +51,7 @@ auth:
 service:
   auth:
     username: encoding-service
+    password: ${ENCODING_SERVICE_PASSWORD}
 
 # ffmpeg Config
 ffmpeg:

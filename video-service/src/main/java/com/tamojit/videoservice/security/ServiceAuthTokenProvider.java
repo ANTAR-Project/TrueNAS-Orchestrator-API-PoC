@@ -16,14 +16,17 @@ public class ServiceAuthTokenProvider {
 
     private final RestClient authServiceRestClient;
     private final String serviceUsername;
+    private final String serviceUsernamePassword;
     private volatile String token;
 
     public ServiceAuthTokenProvider(
         RestClient authServiceRestClient,
-        @Value("${service.auth.username}") String serviceUsername
+        @Value("${service.auth.username}") String serviceUsername,
+        @Value("${service.auth.password}") String serviceUsernamePassword
     ) {
         this.authServiceRestClient = authServiceRestClient;
         this.serviceUsername = serviceUsername;
+        this.serviceUsernamePassword = serviceUsernamePassword;
     }
 
     @PostConstruct
@@ -48,9 +51,9 @@ public class ServiceAuthTokenProvider {
         }
 
         TokenResponse response = authServiceRestClient.post()
-            .uri("/api/v1/auth-service/tokens")
+            .uri("/api/v1/auth-service/login")
             .contentType(MediaType.APPLICATION_JSON)
-            .body(new TokenRequest(serviceUsername))
+            .body(new TokenRequest(serviceUsername, serviceUsernamePassword))
             .retrieve()
             .body(TokenResponse.class);
 

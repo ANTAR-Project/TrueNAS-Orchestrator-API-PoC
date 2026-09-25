@@ -50,6 +50,28 @@ services:
       - antar-network
 
   # ─────────────────────────────────────────
+  # POSTGRES — auth-service identity store
+  # ─────────────────────────────────────────
+  postgres:
+    image: postgres:17-alpine
+    container_name: postgres-antar
+    environment:
+      POSTGRES_DB: antar_auth
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d antar_auth" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - antar-network
+
+  # ─────────────────────────────────────────
   # MICROSERVICES
   # ─────────────────────────────────────────
 
@@ -132,7 +154,10 @@ services:
       - "8085:8085"
       - "4091:4091"
     depends_on:
-      - redis
+      redis:
+        condition: service_started
+      postgres:
+        condition: service_healthy
     networks:
       - antar-network
 
@@ -142,3 +167,4 @@ networks:
 
 volumes:
   redis-data:
+  postgres-data:
