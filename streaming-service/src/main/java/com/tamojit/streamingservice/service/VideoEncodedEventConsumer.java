@@ -11,8 +11,10 @@ import org.springframework.stereotype.Service;
 @Slf4j
 @RequiredArgsConstructor
 public class VideoEncodedEventConsumer {
-    private final RedisTemplate<String, String> redisTemplate;
     private static final String MASTER_PLAYLIST_KEY_PREFIX = "streaming:playlist:";
+
+    private final RedisTemplate<String, String> redisTemplate;
+    private final PlaylistService playlistService;
 
     /*
      * Listens on video.encoded topic in Kafka
@@ -30,6 +32,15 @@ public class VideoEncodedEventConsumer {
             // storing master playlist in redis
             String cacheKey = MASTER_PLAYLIST_KEY_PREFIX + event.getNasPath();
             redisTemplate.opsForValue().set(cacheKey, event.getMasterPlaylistPath());
+
+            String username = event.getWorkspaceRoot();
+            playlistService.savePlaylist(
+                username,
+                event.getNasPath(),
+                event.getMasterPlaylistPath(),
+                event.getThumbnailPath()
+            );
+
             log.info("Successfully cached playlist path for movie: {} → {}", event.getNasPath(), event.getMasterPlaylistPath());
         } else {
             log.error("Encoding failed for movie: {} - {}", event.getNasPath(), event.getErrorMessage());

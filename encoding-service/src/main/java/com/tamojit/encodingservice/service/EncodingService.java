@@ -92,22 +92,35 @@ public class EncodingService {
                 log.info("Encoded {}p successfully", height);
             }
 
-            // S4: generating master playlist
+            // S4: generating thumbnail (single JPEG frame at 5 s, 720 px wide)
+            String localThumbnailPath = jobPath + "/encoded/thumbnail.jpg";
+            try {
+                generateThumbnail(localVideoPath, localThumbnailPath);
+                log.info("Thumbnail generated successfully");
+            } catch (Exception e) {
+                // Thumbnail failure must not abort the encoding job
+                log.warn("Thumbnail generation failed (non-fatal): {}", e.getMessage());
+            }
+
+            // S5: generating master playlist
             String localMasterPlaylistPath = jobPath + "/encoded/master.m3u8";
             generateMasterPlaylist(localMasterPlaylistPath);
             log.info("Master playlist generated successfully");
 
-            // S5: uploading all encoded files to NAS in one folder upload
+            // S6: uploading all encoded files to NAS in one folder upload
             String encodedBasePath = buildEncodedBasePath(event);
             nasOrchestratorClient.uploadFolder(encodedBasePath, new File(jobPath + "/encoded"));
             log.info("All encoded files uploaded to NAS successfully");
 
-            // S6: publishing video.encoded event
+            // S7: publishing video.encoded event
             String masterPlaylistPath = encodedBasePath + "/master.m3u8";
+            String thumbnailNasPath   = encodedBasePath + "/thumbnail.jpg";
 
             VideoEncodedEvent encodedEvent = new VideoEncodedEvent(
+                event.getWorkspaceRoot(),
                 event.getNasPath(),
                 masterPlaylistPath,
+                thumbnailNasPath,
                 true,
                 null
             );
@@ -117,9 +130,10 @@ public class EncodingService {
         } catch (Exception e) {
             log.error("Encoding failed for movie: {} - {}", event.getNasPath(), e.getMessage());
 
-            // publishing failure event (Fixed to 4 args)
             VideoEncodedEvent failureEvent = new VideoEncodedEvent(
+                event.getWorkspaceRoot(),
                 event.getNasPath(),
+                null,
                 null,
                 false,
                 e.getMessage()
@@ -175,6 +189,36 @@ public class EncodingService {
         int exitCode = process.exitValue();
         if (exitCode != 0) {
             throw new RuntimeException("ffmpeg encoding failed for playlist: " + playlistPath + " with exit code: " + exitCode);
+        }
+    }
+
+    private void generateThumbnail(String inputPath, String outputPath)
+            throws IOException, InterruptedException {
+        // Single JPEG frame at t=5s, 720 px wide, aspect-ratio-preserving.
+        // -2 on the height ensures the output height is always a multiple of 2 (codec compat).
+        List<String> command = Arrays.asList(
+            ffmpegPath,
+            "-ss", "00:00:05",          // fast seek to 5 seconds
+            "-i", inputPath,
+            "-frames:v", "1",           // single frame only
+            "-vf", "scale=1280:-2",     // 720p-equivalent width (16:9 → 1280×720), preserve AR
+            "-q:v", "2",                // JPEG quality (1=best, 31=worst); 2 gives ~95% quality
+            "-y",                       // overwrite without prompting
+            outputPath
+        );
+
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.redirectErrorStream(true);
+        pb.inheritIO();
+        Process p = pb.start();
+
+        boolean done = p.waitFor(2, TimeUnit.MINUTES);
+        if (!done) {
+            p.destroyForcibly();
+            throw new RuntimeException("ffmpeg thumbnail timed out for: " + inputPath);
+        }
+        if (p.exitValue() != 0) {
+            throw new RuntimeException("ffmpeg thumbnail failed with exit code: " + p.exitValue());
         }
     }
 

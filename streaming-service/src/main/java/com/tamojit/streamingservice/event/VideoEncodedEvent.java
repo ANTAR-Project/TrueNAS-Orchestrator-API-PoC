@@ -15,8 +15,10 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class VideoEncodedEvent {
+    private String workspaceRoot;
     private String nasPath;
     private String masterPlaylistPath;
+    private String thumbnailPath;
     private boolean success;
     private String errorMessage;
 }

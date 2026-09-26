@@ -25,6 +25,18 @@ spring:
             value:
               default:
                 type: com.tamojit.streamingservice.event.VideoEncodedEvent
+  datasource:
+    url: ${STREAMING_DB_URL}
+    username: ${STREAMING_DB_USERNAME}
+    password: ${STREAMING_DB_PASSWORD}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
   grpc:
     client:
       channels:
