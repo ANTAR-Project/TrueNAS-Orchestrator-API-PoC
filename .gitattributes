@@ -1,0 +1,2 @@
+*.sh text eol=lf
+postgres-init/* text eol=lf
