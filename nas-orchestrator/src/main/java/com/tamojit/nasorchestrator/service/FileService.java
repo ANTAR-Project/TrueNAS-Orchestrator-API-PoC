@@ -45,7 +45,7 @@ public class FileService {
     }
 
     public InputStream preview(String path) throws IOException {
-        assertNotEncodedPath(path);
+        //assertNotEncodedPath(path);
         return smbFileClient.preview(path);
     }
 
