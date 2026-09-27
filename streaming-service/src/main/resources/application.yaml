@@ -25,6 +25,9 @@ spring:
             value:
               default:
                 type: com.tamojit.streamingservice.event.VideoEncodedEvent
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
   datasource:
     url: ${STREAMING_DB_URL}
     username: ${STREAMING_DB_USERNAME}

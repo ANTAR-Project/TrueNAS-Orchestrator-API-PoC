@@ -1,10 +1,12 @@
 package com.tamojit.streamingservice.service;
 
+import com.tamojit.streamingservice.event.PlaylistReadyEvent;
 import com.tamojit.streamingservice.event.VideoEncodedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -12,9 +14,11 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class VideoEncodedEventConsumer {
     private static final String MASTER_PLAYLIST_KEY_PREFIX = "streaming:playlist:";
+    private static final String PLAYLIST_READY_TOPIC = "playlist.ready";
 
     private final RedisTemplate<String, String> redisTemplate;
     private final PlaylistService playlistService;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
 
     /*
      * Listens on video.encoded topic in Kafka
@@ -40,6 +44,13 @@ public class VideoEncodedEventConsumer {
                 event.getMasterPlaylistPath(),
                 event.getThumbnailPath()
             );
+
+            kafkaTemplate.send(PLAYLIST_READY_TOPIC, new PlaylistReadyEvent(
+                username,
+                event.getNasPath(),
+                event.getMasterPlaylistPath(),
+                event.getThumbnailPath()
+            ));
 
             log.info("Successfully cached playlist path for movie: {} → {}", event.getNasPath(), event.getMasterPlaylistPath());
         } else {

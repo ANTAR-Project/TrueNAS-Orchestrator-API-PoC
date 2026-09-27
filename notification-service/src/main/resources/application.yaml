@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: notification-service
+  config:
+    import: optional:file:.env[.properties]
+  kafka:
+    bootstrap-servers: kafka:29092
+    consumer:
+      group-id: notification-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring:
+          json:
+            trusted:
+              packages: "*"
+            use:
+              type:
+                headers: false
+            value:
+              default:
+                type: com.tamojit.notificationservice.event.PlaylistReadyEvent
+
+  grpc:
+    client:
+      channels:
+        auth-service:
+          address: static://auth-service:4091
+
+server:
+  port: 8087
+
+notification:
+  ws:
+    allowed-origins: ${WS_ALLOWED_ORIGINS}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info

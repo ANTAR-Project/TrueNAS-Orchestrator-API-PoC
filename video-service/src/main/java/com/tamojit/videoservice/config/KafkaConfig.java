@@ -25,4 +25,14 @@ public class KafkaConfig {
             .replicas(1)
             .build();
     }
+
+    // published by streaming-service after the playlist row is durable committed to Postgres
+    // notification-service consumes this topic
+    @Bean
+    public NewTopic playlistReadyTopic() {
+        return TopicBuilder.name("playlist.ready")
+            .partitions(3)
+            .replicas(1)
+            .build();
+    }
 }

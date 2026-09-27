@@ -178,6 +178,24 @@ services:
     networks:
       - antar-network
 
+  # notification-service
+  notification-service:
+    build:
+      context: .
+      dockerfile: notification-service/Dockerfile
+    container_name: notification-service
+    env_file:
+      - ./notification-service/.env
+    ports:
+      - "8087:8087"
+    depends_on:
+      kafka:
+        condition: service_started
+      auth-service:
+        condition: service_started
+    networks:
+      - antar-network
+
 networks:
   antar-network:
     driver: bridge
