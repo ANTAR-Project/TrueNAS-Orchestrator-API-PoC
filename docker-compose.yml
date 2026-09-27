@@ -46,6 +46,12 @@ services:
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: [ "CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092" ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
     networks:
       - antar-network
 
@@ -86,8 +92,10 @@ services:
       - "8081:8081"
       - "4092:4092"
     depends_on:
-      - redis
-      - auth-service
+      redis:
+        condition: service_started
+      auth-service:
+        condition: service_started
     networks:
       - antar-network
 
@@ -102,8 +110,10 @@ services:
     ports:
       - "8082:8082"
     depends_on:
-      - kafka
-      - auth-service
+      kafka:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
     networks:
       - antar-network
 
@@ -118,8 +128,10 @@ services:
     ports:
       - "8083:8083"
     depends_on:
-      - kafka
-      - auth-service
+      kafka:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
     networks:
       - antar-network
 
@@ -134,10 +146,16 @@ services:
     ports:
       - "8084:8084"
     depends_on:
-      - redis
-      - kafka
-      - nas-orchestrator
-      - auth-service
+      redis:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      nas-orchestrator:
+        condition: service_started
+      auth-service:
+        condition: service_started
     networks:
       - antar-network
 

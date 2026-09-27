@@ -8,6 +8,8 @@ spring:
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    admin:
+      fail-fast: true   # crash loudly if Kafka is unreachable at startup instead of silently continuing
   servlet:
     multipart:
       max-file-size: 2GB
