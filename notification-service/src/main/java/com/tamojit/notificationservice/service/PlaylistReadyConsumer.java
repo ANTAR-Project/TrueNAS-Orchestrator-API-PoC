@@ -21,7 +21,6 @@ public class PlaylistReadyConsumer {
         registry.sendTo(event.getUsername(), new NotificationPayload(
             "PLAYLIST_READY",
             event.getRawPath(),
-            event.getPlaylistPath(),
             event.getThumbnailPath()
         ));
     }

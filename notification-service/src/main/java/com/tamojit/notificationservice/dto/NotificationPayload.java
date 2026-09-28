@@ -8,7 +8,6 @@ package com.tamojit.notificationservice.dto;
 public record NotificationPayload(
     String type,
     String rawPath,
-    String playlistPath,
     String thumbnailPath
 ) {
 }

@@ -1,7 +1,9 @@
 package com.tamojit.streamingservice.service;
 
+import com.tamojit.streamingservice.dto.PlaylistDto;
 import com.tamojit.streamingservice.event.PlaylistReadyEvent;
 import com.tamojit.streamingservice.event.VideoEncodedEvent;
+import com.tamojit.streamingservice.util.NormalizeWorkspacePath;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -45,11 +47,16 @@ public class VideoEncodedEventConsumer {
                 event.getThumbnailPath()
             );
 
-            kafkaTemplate.send(PLAYLIST_READY_TOPIC, new PlaylistReadyEvent(
+            PlaylistDto view = NormalizeWorkspacePath.toClientView(
                 username,
                 event.getNasPath(),
-                event.getMasterPlaylistPath(),
                 event.getThumbnailPath()
+            );
+
+            kafkaTemplate.send(PLAYLIST_READY_TOPIC, new PlaylistReadyEvent(
+                username,
+                view.path(),
+                view.thumbnailUrl()
             ));
 
             log.info("Successfully cached playlist path for movie: {} → {}", event.getNasPath(), event.getMasterPlaylistPath());

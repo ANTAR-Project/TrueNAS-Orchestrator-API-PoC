@@ -10,6 +10,5 @@ import lombok.NoArgsConstructor;
 public class PlaylistReadyEvent {
     private String username;
     private String rawPath;
-    private String playlistPath;
     private String thumbnailPath;
 }
