@@ -28,7 +28,7 @@ flowchart LR
     subgraph Edge
         VS[video-service\nHTTP :8082]
         SS[streaming-service\nHTTP :8084]
-        NOTIF[notification-service\nHTTP :8087 | WS]
+        NOTIF["notification-service\nHTTP :8087 | WS"]
     end
 
     subgraph Core
