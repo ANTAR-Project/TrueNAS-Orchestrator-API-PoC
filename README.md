@@ -14,7 +14,8 @@ A microservice-based video ingestion, transcoding, and adaptive-bitrate streamin
 | **nas-orchestrator** | 8081 | 4092 | Single gateway to TrueNAS storage: file & workspace CRUD, HLS playlist rewriting & segment cache, gRPC file-transfer server + gRPC playlist server, one-time SMB/pool/dataset/share bootstrap | TrueNAS REST API, SMB share, Redis, Caffeine (in-proc), auth-service (gRPC 4091) |
 | **video-service** | 8082 | — | Accepts raw video uploads (path-scoped multipart), streams file to nas-orchestrator over gRPC, publishes `video.uploaded` | nas-orchestrator (gRPC 4092), Kafka, auth-service |
 | **encoding-service** | 8083 | — | Consumes `video.uploaded`, downloads raw file & uploads multi-bitrate HLS tree + JPEG thumbnail via gRPC, publishes `video.encoded` | nas-orchestrator (gRPC 4092), Kafka, auth-service, local FFmpeg binary |
-| **streaming-service** | 8084 | — | Client-facing playlist proxy (`GET /api/v1/stream`) and playlist index (`GET /api/v1/stream/playlists`); resolves path via Redis and proxies through nas-orchestrator over gRPC; persists playlist metadata (including thumbnail NAS path) in PostgreSQL; also consumes `video.encoded` to cache master playlist paths in Redis and upsert records in PostgreSQL | Redis, PostgreSQL (`antar_streaming`), nas-orchestrator (gRPC 4092), auth-service (gRPC 4091) |
+| **streaming-service** | 8084 | — | Client-facing playlist proxy (`GET /api/v1/stream`) and playlist index (`GET /api/v1/stream/playlists`); resolves path via Redis and proxies through nas-orchestrator over gRPC; persists playlist metadata (including thumbnail NAS path) in PostgreSQL; also consumes `video.encoded` to cache master playlist paths in Redis and upsert records in PostgreSQL; publishes `playlist.ready` on success | Redis, PostgreSQL (`antar_streaming`), nas-orchestrator (gRPC 4092), auth-service (gRPC 4091), Kafka |
+| **notification-service** | 8087 | — | Consumes `playlist.ready` Kafka events and pushes real-time WebSocket notifications to connected clients. Validates initial WebSocket handshake using `auth-service`. | Kafka, auth-service (gRPC 4091), WebSockets |
 
 Supporting infra (from `docker-compose.yml`): **Redis** (6379), **Zookeeper** (2181, Kafka dependency), **Kafka** (9092 external / 29092 internal), **PostgreSQL** (5432, single container running two logical databases provisioned at startup via `postgres-init/01-provision-databases.sh`).
 
@@ -27,6 +28,7 @@ flowchart LR
     subgraph Edge
         VS[video-service\nHTTP :8082]
         SS[streaming-service\nHTTP :8084]
+        NOTIF[notification-service\nHTTP :8087 | WS]
     end
 
     subgraph Core
@@ -48,6 +50,7 @@ flowchart LR
     Client -- "4. GET /api/v1/stream?path=<nasPath>" --> SS
     Client -- "6. GET /api/v1/stream/playlists (list)" --> SS
     Client -- "7. GET /preview?path=<thumbnailPath>" --> NAS
+    Client -- "8. WS /ws/notifications" --> NOTIF
     Client -- "5. GET segment / playlist\n(direct, URL rewritten)" --> NAS
 
     VS -- "gRPC UploadFile (64KB chunks)" --> NAS
@@ -60,9 +63,12 @@ flowchart LR
     SS -- "resolve nasPath → master.m3u8 path" --> REDIS
     SS -- "upsert playlist record (rawPath, playlistPath, thumbnailPath)" --> PG
     SS -- "query playlists by username" --> PG
+    SS -- "publish playlist.ready" --> KAFKA
+    KAFKA -- "consume playlist.ready" --> NOTIF
     SS -- "gRPC GetRewrittenPlaylist" --> NAS
     NAS -- "gRPC ValidateToken" --> AUTH
     SS -- "gRPC ValidateToken" --> AUTH
+    NOTIF -- "gRPC ValidateToken" --> AUTH
     VS -- "fetch service token (login)" --> AUTH
     ENC -- "fetch service token (login)" --> AUTH
     AUTH -- "read/write user records" --> PG
@@ -107,10 +113,12 @@ flowchart LR
 4. **Index** — `streaming-service` consumes `video.encoded` and, on success:
    - Caches `nasPath → {workspaceRoot}/encoded/{path}/{fileBaseName}/master.m3u8` in Redis (`streaming:playlist:{nasPath}`).
    - Upserts a `Playlist` record in PostgreSQL: `username`, `raw_path`, `playlist_path`, `thumbnail_path` (the NAS-relative path to `thumbnail.jpg`). The upsert is `ON CONFLICT (raw_path) DO UPDATE` — safe for Kafka at-least-once redelivery.
-5. **Play** — Client calls `streaming-service GET /api/v1/stream?path=<nasPath>` supplying the raw file's NAS path (e.g. `sample.mp4`). `streaming-service` scopes it to `{username}/{path}`, resolves the master playlist path from Redis, then forwards it to `nas-orchestrator` via **gRPC (`StreamingGrpcService.GetRewrittenPlaylist`)**, attaching the caller's JWT per-call via gRPC metadata.
-6. **Direct playback** — `nas-orchestrator` rewrites every line of every playlist it serves: variant `.m3u8` references route back to `/api/v1/nas-orchestrator/stream/playlist`, `.ts` segment references route to `/api/v1/nas-orchestrator/stream/segment` — both carrying `?token=` — so the player fetches all subsequent playlists and segments **directly from nas-orchestrator**, hitting the L1/L2 segment cache (with N+1 prefetch) on every `.ts` read.
-7. **Playlist library** — Client calls `streaming-service GET /api/v1/stream/playlists`. The endpoint queries PostgreSQL for all `Playlist` rows belonging to the authenticated user and returns a list of `{ path, thumbnailUrl }` objects. `path` is the username-prefix-stripped raw NAS path (e.g. `sample.mp4`). `thumbnailUrl` is similarly stripped to a relative path (e.g. `encoded/sample/thumbnail.jpg`).
-8. **Thumbnail fetch** — Client constructs the thumbnail URL using the `thumbnailUrl` value from step 7 and calls `nas-orchestrator GET /api/v1/nas-orchestrator/files/preview?path=<thumbnailUrl>` with the auth token. The preview endpoint streams the JPEG inline from the SMB share.
+    - Publishes `PlaylistReadyEvent` on **`playlist.ready`** Kafka topic.
+5. **Notify** — `notification-service` consumes `playlist.ready`. It looks up any active WebSocket sessions for `username` (connected at `/ws/notifications`) and pushes a real-time JSON notification indicating the playlist is ready for playback.
+6. **Play** — Client calls `streaming-service GET /api/v1/stream?path=<nasPath>` supplying the raw file's NAS path (e.g. `sample.mp4`). `streaming-service` scopes it to `{username}/{path}`, resolves the master playlist path from Redis, then forwards it to `nas-orchestrator` via **gRPC (`StreamingGrpcService.GetRewrittenPlaylist`)**, attaching the caller's JWT per-call via gRPC metadata.
+7. **Direct playback** — `nas-orchestrator` rewrites every line of every playlist it serves: variant `.m3u8` references route back to `/api/v1/nas-orchestrator/stream/playlist`, `.ts` segment references route to `/api/v1/nas-orchestrator/stream/segment` — both carrying `?token=` — so the player fetches all subsequent playlists and segments **directly from nas-orchestrator**, hitting the L1/L2 segment cache (with N+1 prefetch) on every `.ts` read.
+8. **Playlist library** — Client calls `streaming-service GET /api/v1/stream/playlists`. The endpoint queries PostgreSQL for all `Playlist` rows belonging to the authenticated user and returns a list of `{ path, thumbnailUrl }` objects. `path` is the username-prefix-stripped raw NAS path (e.g. `sample.mp4`). `thumbnailUrl` is similarly stripped to a relative path (e.g. `encoded/sample/thumbnail.jpg`).
+9. **Thumbnail fetch** — Client constructs the thumbnail URL using the `thumbnailUrl` value from step 8 and calls `nas-orchestrator GET /api/v1/nas-orchestrator/files/preview?path=<thumbnailUrl>` with the auth token. The preview endpoint streams the JPEG inline from the SMB share.en. The preview endpoint streams the JPEG inline from the SMB share.
 
 ### 2.2 Auth flow
 
@@ -364,6 +372,26 @@ DO UPDATE SET playlist_path = EXCLUDED.playlist_path,
 
 ---
 
+### 3.6 `notification-service` (`:8087` HTTP)
+
+Operates primarily as a Kafka consumer and WebSocket server to push real-time updates to clients.
+
+| Method | Endpoint | Query Params | Description |
+|---|---|---|---|
+| `WS` | `/ws/notifications` | `token` (query) | Connect to receive real-time notifications (e.g. `PLAYLIST_READY`). The connection is authenticated via `auth-service` during the initial handshake. |
+
+**Kafka event consumed** (`playlist.ready`, group `notification-service-group`):
+
+| Field | Type | Description |
+|---|---|---|
+| `username` | String | Authenticated username (workspace root directory) |
+| `rawPath` | String | Original NAS path of the uploaded video |
+| `thumbnailPath` | String | NAS-relative path to the generated thumbnail |
+
+When a `playlist.ready` event is consumed, the service looks up the connected WebSocket session(s) for the `username` and pushes a JSON payload to the client.
+
+---
+
 ## 4. Repository layout
 
 ```
@@ -375,7 +403,8 @@ TrueNAS-Orchestrator-API-PoC/
 ├── nas-orchestrator/         # SMB/TrueNAS gateway, HLS proxy, file CRUD, gRPC server (port 8081 / 4092)
 ├── video-service/            # upload intake, gRPC client, kafka producer (port 8082)
 ├── encoding-service/         # kafka consumer, ffmpeg HLS encode + thumbnail, gRPC client (port 8083)
-└── streaming-service/        # kafka consumer (index + postgres upsert), gRPC playlist proxy, playlist library API (port 8084)
+├── streaming-service/        # kafka consumer (index + postgres upsert), gRPC playlist proxy, playlist library API (port 8084)
+└── notification-service/     # kafka consumer, websocket server for real-time client notifications (port 8087)
 ```
 
 ---
@@ -467,3 +496,5 @@ curl "http://localhost:8081/api/v1/nas-orchestrator/files/preview?path=encoded/s
 - **Redis playlist index is required for playback** — `streaming-service` resolves `streaming:playlist:{scopedNasPath}` from Redis on every `GET /api/v1/stream` request. If the key is missing (encoding not yet complete or failed), the endpoint returns `404`. The PostgreSQL-backed `GET /api/v1/stream/playlists` list endpoint is independent of Redis and shows all successfully encoded playlists that have been persisted.
 - **Thumbnail is best-effort** — if FFmpeg thumbnail generation fails, `thumbnailPath` in the `VideoEncodedEvent` and in the database will be `null`. The client should handle a `null` `thumbnailUrl` in the `GET /api/v1/stream/playlists` response gracefully.
 - **Playlist upsert is idempotent** — the `ON CONFLICT (raw_path) DO UPDATE` query in `PlaylistRepository` means re-delivering a `video.encoded` Kafka event (at-least-once) will update rather than duplicate the playlist record.
+- **Fire-and-forget WebSockets** — `notification-service` only sends notifications to currently connected clients. If a client is not connected when `playlist.ready` arrives, the notification is dropped.
+- **Fail-fast Kafka Producers** — Services like `video-service` are configured with `kafka.admin.fail-fast=true` to crash loudly at startup if the Kafka broker is unreachable, preventing silent data loss on upload.
