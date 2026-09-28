@@ -61,13 +61,15 @@ services:
   postgres:
     image: postgres:17-alpine
     container_name: postgres-antar
+    build:
+      context: .
+      dockerfile: ./Dockerfile
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD} # bootstrap-only superuser; no app connects as this role
       AUTH_DB_PASSWORD: ${AUTH_DB_PASSWORD}
       STREAMING_DB_PASSWORD: ${STREAMING_DB_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./postgres-init:/docker-entrypoint-initdb.d
     healthcheck:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
